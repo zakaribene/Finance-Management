@@ -1,0 +1,20 @@
+{
+  "name": "Finance Management SaaS",
+  "short_name": "Finance SaaS",
+  "description": "Manage income, expenses, transfers, reports, users, and notifications.",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#f1f5f9",
+  "theme_color": "#020617",
+  "categories": ["finance", "business", "productivity"],
+  "icons": [
+    {
+      "src": "/icons/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}

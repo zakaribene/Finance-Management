@@ -1,0 +1,64 @@
+import { ROLES } from '../../constants/index.js';
+import { ApiError } from '../../utils/ApiError.js';
+import { hashPassword, makeTemporaryPassword } from '../../utils/password.js';
+import { createDefaultPaymentMethods } from '../payment-methods/paymentMethod.service.js';
+import { Role } from '../roles/role.model.js';
+import { User } from './user.model.js';
+
+export async function listUsers(query) {
+  const page = Number(query.page || 1);
+  const limit = Number(query.limit || 10);
+  const filter = {};
+  if (query.search) filter.$or = [{ fullName: new RegExp(query.search, 'i') }, { email: new RegExp(query.search, 'i') }, { username: new RegExp(query.search, 'i') }];
+  if (query.status) filter.status = query.status;
+  if (query.verified !== undefined) filter.verified = query.verified === 'true';
+  if (query.role) {
+    const role = await Role.findOne({ name: query.role });
+    filter.roleId = role?._id;
+  }
+  const [data, totalRecords] = await Promise.all([
+    User.find(filter).populate('roleId', 'name').select('-password').skip((page - 1) * limit).limit(limit).sort({ createdAt: -1 }),
+    User.countDocuments(filter)
+  ]);
+  return { data, totalRecords, totalPages: Math.ceil(totalRecords / limit), currentPage: page };
+}
+
+export async function createUser(payload, actorId) {
+  const role = await Role.findOne({ name: payload.role || ROLES.USER });
+  if (!role) throw new ApiError(400, 'Invalid role');
+  const user = await User.create({ ...payload, password: await hashPassword(payload.password), roleId: role._id, createdBy: actorId });
+  if (role.name === ROLES.USER) await createDefaultPaymentMethods(user._id);
+  return user.populate('roleId', 'name');
+}
+
+export async function updateUser(id, payload) {
+  delete payload.password;
+  delete payload.roleId;
+  const user = await User.findByIdAndUpdate(id, payload, { new: true }).populate('roleId', 'name').select('-password');
+  if (!user) throw new ApiError(404, 'User not found');
+  return user;
+}
+
+export async function deleteUser(id) {
+  const user = await User.findByIdAndDelete(id);
+  if (!user) throw new ApiError(404, 'User not found');
+  return user;
+}
+
+export async function setStatus(id, status) {
+  return updateUser(id, { status });
+}
+
+export async function setVerified(id, verified) {
+  return updateUser(id, { verified });
+}
+
+export async function resetPassword(id) {
+  const tempPassword = makeTemporaryPassword();
+  const user = await User.findByIdAndUpdate(id, {
+    password: await hashPassword(tempPassword),
+    forcePasswordChange: true
+  }, { new: true }).select('-password');
+  if (!user) throw new ApiError(404, 'User not found');
+  return { user, tempPassword };
+}

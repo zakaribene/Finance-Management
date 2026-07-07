@@ -1,0 +1,52 @@
+import cookieParser from 'cookie-parser';
+import cors from 'cors';
+import express from 'express';
+import mongoSanitize from 'express-mongo-sanitize';
+import rateLimit from 'express-rate-limit';
+import helmet from 'helmet';
+import morgan from 'morgan';
+import { env } from './config/env.js';
+import { errorMiddleware, notFound } from './middleware/error.middleware.js';
+import { activityLogRoutes } from './modules/activity-logs/activityLog.route.js';
+import { authRoutes } from './modules/auth/auth.route.js';
+import { dashboardRoutes } from './modules/dashboard/dashboard.route.js';
+import { expenseRoutes } from './modules/expenses/expense.route.js';
+import { incomeRoutes } from './modules/income/income.route.js';
+import { notificationRoutes } from './modules/notifications/notification.route.js';
+import { paymentMethodRoutes } from './modules/payment-methods/paymentMethod.route.js';
+import { permissionRoutes } from './modules/permissions/permission.route.js';
+import { reportRoutes } from './modules/reports/report.route.js';
+import { roleRoutes } from './modules/roles/role.route.js';
+import { settingRoutes } from './modules/settings/setting.route.js';
+import { transferRoutes } from './modules/transfers/transfer.route.js';
+import { userRoutes } from './modules/users/user.route.js';
+
+export function createApp() {
+  const app = express();
+  app.use(helmet());
+  app.use(cors({ origin: env.clientUrl, credentials: true }));
+  app.use(express.json({ limit: '1mb' }));
+  app.use(cookieParser());
+  app.use(mongoSanitize());
+  app.use(morgan('dev'));
+  app.use('/api/v1/auth/login', rateLimit({ windowMs: 15 * 60 * 1000, limit: 20 }));
+  app.use('/api/v1/auth/refresh', rateLimit({ windowMs: 15 * 60 * 1000, limit: 60 }));
+
+  app.use('/api/v1/auth', authRoutes);
+  app.use('/api/v1/users', userRoutes);
+  app.use('/api/v1/roles', roleRoutes);
+  app.use('/api/v1/permissions', permissionRoutes);
+  app.use('/api/v1/dashboard', dashboardRoutes);
+  app.use('/api/v1/payment-methods', paymentMethodRoutes);
+  app.use('/api/v1/income', incomeRoutes);
+  app.use('/api/v1/expenses', expenseRoutes);
+  app.use('/api/v1/transfers', transferRoutes);
+  app.use('/api/v1/reports', reportRoutes);
+  app.use('/api/v1/notifications', notificationRoutes);
+  app.use('/api/v1/activity-logs', activityLogRoutes);
+  app.use('/api/v1/settings', settingRoutes);
+
+  app.use(notFound);
+  app.use(errorMiddleware);
+  return app;
+}
