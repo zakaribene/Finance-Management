@@ -1,4 +1,4 @@
-import { Bell, CheckCheck, ChevronDown, LayoutDashboard, LogOut, Monitor, Moon, Receipt, Repeat2, Settings, Shield, Sun, Users, WalletCards, X } from 'lucide-react';
+import { Bell, CheckCheck, ChevronDown, LayoutDashboard, LogOut, Menu, Monitor, Moon, Receipt, Repeat2, Settings, Shield, Sun, Users, WalletCards, X } from 'lucide-react';
 import { NavLink, Outlet, useNavigate } from 'react-router-dom';
 import { useDispatch, useSelector } from 'react-redux';
 import { useEffect, useMemo, useState } from 'react';
@@ -27,15 +27,18 @@ export default function AppLayout() {
   const dispatch = useDispatch();
   const navigate = useNavigate();
   const [theme, setTheme] = useState(() => localStorage.getItem('theme') || 'system');
+  const [isDarkMode, setIsDarkMode] = useState(false);
   const [notifications, setNotifications] = useState([]);
   const [notificationOpen, setNotificationOpen] = useState(false);
   const [profileOpen, setProfileOpen] = useState(false);
+  const [menuOpen, setMenuOpen] = useState(false);
   const unreadCount = useMemo(() => notifications.filter((item) => !item.isRead).length, [notifications]);
   const initials = (auth.user?.fullName || auth.user?.email || 'U').split(' ').map((item) => item[0]).join('').slice(0, 2).toUpperCase();
   useEffect(() => {
     const media = window.matchMedia('(prefers-color-scheme: dark)');
     const applyTheme = () => {
       const shouldUseDark = theme === 'dark' || (theme === 'system' && media.matches);
+      setIsDarkMode(shouldUseDark);
       document.documentElement.classList.toggle('dark', shouldUseDark);
       document.documentElement.style.colorScheme = shouldUseDark ? 'dark' : 'light';
       localStorage.setItem('theme', theme);
@@ -73,45 +76,89 @@ export default function AppLayout() {
     await api.delete('/notifications/clear-read');
     await loadNotifications();
   };
+  const navItems = links.filter((link) => can(auth, link.module));
+  const ThemeButtons = ({ compact = false }) => (
+    <div className={compact ? 'grid grid-cols-3 gap-2' : 'flex items-center rounded-full border border-slate-200 bg-white p-1 shadow-sm'}>
+      {[
+        { value: 'light', icon: Sun, label: 'Light' },
+        { value: 'dark', icon: Moon, label: 'Dark' },
+        { value: 'system', icon: Monitor, label: 'System' }
+      ].map((item) => {
+        const Icon = item.icon;
+        return (
+          <button
+            key={item.value}
+            onClick={() => setTheme(item.value)}
+            className={compact
+              ? `flex flex-col items-center gap-1 rounded-lg px-2 py-2 text-xs font-medium transition ${theme === item.value ? 'bg-blue-600 text-white shadow-sm' : isDarkMode ? 'text-slate-400 hover:bg-white/10 hover:text-white' : 'text-slate-500 hover:bg-slate-100 hover:text-slate-950'}`
+              : `grid h-9 w-9 place-items-center rounded-full transition ${theme === item.value ? 'bg-blue-600 text-white shadow-sm' : 'text-slate-500 hover:bg-slate-100'}`}
+            title={item.label}
+          >
+            <Icon className="h-4 w-4" />
+            {compact && item.label}
+          </button>
+        );
+      })}
+    </div>
+  );
+  const SidebarContent = ({ onNavigate }) => (
+    <>
+      <div className={`flex items-center justify-between rounded-xl border p-4 shadow-sm ${isDarkMode ? 'border-white/10 bg-white/5' : 'border-slate-200 bg-white'}`}>
+        <div>
+          <h1 className={`text-lg font-semibold ${isDarkMode ? 'text-white' : 'text-slate-950'}`}>Finance Management</h1>
+          <p className={`mt-1 text-xs ${isDarkMode ? 'text-slate-400' : 'text-slate-500'}`}>SaaS Control Panel</p>
+        </div>
+        {onNavigate && (
+          <button onClick={onNavigate} className={`grid h-9 w-9 place-items-center rounded-full transition ${isDarkMode ? 'text-slate-300 hover:bg-white/10 hover:text-white' : 'text-slate-500 hover:bg-slate-100 hover:text-slate-950'}`}>
+            <X className="h-5 w-5" />
+          </button>
+        )}
+      </div>
+      <nav className="mt-6 space-y-1">
+        {navItems.map((link) => {
+          const Icon = link.icon;
+          return (
+            <NavLink
+              key={link.to}
+              to={link.to}
+              onClick={onNavigate}
+              className={({ isActive }) => `flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm transition ${isActive ? 'bg-blue-600 text-white shadow-sm' : isDarkMode ? 'text-slate-300 hover:bg-white/10 hover:text-white' : 'text-slate-600 hover:bg-slate-100 hover:text-slate-950'}`}
+            >
+              <Icon className="h-4 w-4" />
+              {link.label}
+            </NavLink>
+          );
+        })}
+      </nav>
+      <div className={`mt-6 rounded-xl border p-3 shadow-sm lg:hidden ${isDarkMode ? 'border-white/10 bg-white/5' : 'border-slate-200 bg-white'}`}>
+        <p className={`mb-2 px-1 text-xs font-semibold uppercase tracking-wide ${isDarkMode ? 'text-slate-400' : 'text-slate-500'}`}>Theme</p>
+        <ThemeButtons compact />
+      </div>
+    </>
+  );
   return (
     <div className="min-h-screen bg-slate-100">
-      <aside className="fixed inset-y-0 left-0 hidden w-72 border-r border-slate-800 bg-slate-950 p-5 lg:block">
-        <div className="rounded-xl bg-white/5 p-4">
-          <h1 className="text-lg font-semibold text-white">Finance Management</h1>
-          <p className="mt-1 text-xs text-slate-400">SaaS Control Panel</p>
-        </div>
-        <nav className="mt-6 space-y-1">
-          {links.filter((link) => can(auth, link.module)).map((link) => {
-            const Icon = link.icon;
-            return <NavLink key={link.to} to={link.to} className={({ isActive }) => `flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm transition ${isActive ? 'bg-blue-600 text-white shadow-sm' : 'text-slate-300 hover:bg-white/10 hover:text-white'}`}><Icon className="h-4 w-4" />{link.label}</NavLink>;
-          })}
-        </nav>
+      <aside className={`fixed inset-y-0 left-0 hidden w-72 border-r p-5 transition-colors lg:block ${isDarkMode ? 'border-slate-800 bg-slate-950' : 'border-slate-200 bg-slate-50'}`}>
+        <SidebarContent />
+      </aside>
+      {menuOpen && <div className="fixed inset-0 z-40 bg-slate-950/60 backdrop-blur-sm lg:hidden" onClick={() => setMenuOpen(false)} />}
+      <aside className={`fixed inset-y-0 left-0 z-50 w-[84vw] max-w-80 border-r p-5 shadow-2xl shadow-slate-950/20 transition-all duration-300 lg:hidden ${isDarkMode ? 'border-slate-800 bg-slate-950' : 'border-slate-200 bg-slate-50'} ${menuOpen ? 'translate-x-0' : '-translate-x-full'}`}>
+        <SidebarContent onNavigate={() => setMenuOpen(false)} />
       </aside>
       <main className="lg:pl-72">
         <header className="sticky top-0 z-20 flex items-center justify-between border-b border-slate-200 bg-white/90 px-6 py-4 backdrop-blur">
-          <div>
-            <p className="text-xs font-medium uppercase tracking-wide text-slate-500">{auth.role}</p>
-            <p className="text-base font-semibold text-slate-950">{auth.user?.fullName || auth.user?.email}</p>
+          <div className="flex items-center gap-3">
+            <button onClick={() => setMenuOpen(true)} className="grid h-11 w-11 place-items-center rounded-full border border-slate-200 bg-white text-slate-700 shadow-sm transition hover:bg-slate-50 lg:hidden" title="Open menu">
+              <Menu className="h-5 w-5" />
+            </button>
+            <div>
+              <p className="text-xs font-medium uppercase tracking-wide text-slate-500">{auth.role}</p>
+              <p className="text-base font-semibold text-slate-950">{auth.user?.fullName || auth.user?.email}</p>
+            </div>
           </div>
           <div className="relative flex items-center gap-3">
-            <div className="hidden items-center rounded-full border border-slate-200 bg-white p-1 shadow-sm sm:flex">
-              {[
-                { value: 'light', icon: Sun, label: 'Light' },
-                { value: 'dark', icon: Moon, label: 'Dark' },
-                { value: 'system', icon: Monitor, label: 'System' }
-              ].map((item) => {
-                const Icon = item.icon;
-                return (
-                  <button
-                    key={item.value}
-                    onClick={() => setTheme(item.value)}
-                    className={`grid h-9 w-9 place-items-center rounded-full transition ${theme === item.value ? 'bg-blue-600 text-white shadow-sm' : 'text-slate-500 hover:bg-slate-100'}`}
-                    title={item.label}
-                  >
-                    <Icon className="h-4 w-4" />
-                  </button>
-                );
-              })}
+            <div className="hidden md:block">
+              <ThemeButtons />
             </div>
             <button onClick={() => setNotificationOpen((value) => !value)} className="relative grid h-11 w-11 place-items-center rounded-full border border-slate-200 bg-white text-slate-700 shadow-sm transition hover:bg-slate-50" title="Notifications">
               <Bell className="h-5 w-5" />
@@ -127,7 +174,7 @@ export default function AppLayout() {
             </button>
 
             {notificationOpen && (
-              <div className="absolute right-16 top-14 w-96 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-xl">
+              <div className="fixed left-1/2 top-24 z-50 w-[calc(100vw-2rem)] max-w-sm -translate-x-1/2 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-2xl shadow-slate-950/20 sm:absolute sm:left-auto sm:right-16 sm:top-14 sm:w-96 sm:max-w-none sm:translate-x-0 sm:shadow-xl">
                 <div className="flex items-center justify-between border-b border-slate-100 px-4 py-3">
                   <div>
                     <h2 className="font-semibold text-slate-950">Notifications</h2>
@@ -157,7 +204,7 @@ export default function AppLayout() {
             )}
 
             {profileOpen && (
-              <div className="absolute right-0 top-14 w-80 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-xl">
+              <div className="fixed left-1/2 top-20 z-50 w-[calc(100vw-2rem)] max-w-sm -translate-x-1/2 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-2xl shadow-slate-950/20 sm:absolute sm:left-auto sm:right-0 sm:top-14 sm:w-80 sm:translate-x-0 sm:shadow-xl">
                 <div className="bg-gradient-to-br from-slate-950 to-blue-950 p-5 text-white">
                   <div className="flex items-center gap-3">
                     <span className="grid h-14 w-14 place-items-center rounded-full bg-white/15 text-lg font-semibold ring-1 ring-white/20">{initials}</span>
@@ -168,6 +215,28 @@ export default function AppLayout() {
                   </div>
                 </div>
                 <div className="space-y-2 p-4 text-sm">
+                  <div className="rounded-xl bg-slate-50 p-2 md:hidden">
+                    <p className="mb-2 px-1 text-xs font-semibold uppercase tracking-wide text-slate-500">Theme</p>
+                    <div className="grid grid-cols-3 gap-2">
+                      {[
+                        { value: 'light', icon: Sun, label: 'Light' },
+                        { value: 'dark', icon: Moon, label: 'Dark' },
+                        { value: 'system', icon: Monitor, label: 'System' }
+                      ].map((item) => {
+                        const Icon = item.icon;
+                        return (
+                          <button
+                            key={item.value}
+                            onClick={() => setTheme(item.value)}
+                            className={`flex flex-col items-center gap-1 rounded-lg px-2 py-2 text-xs font-medium transition ${theme === item.value ? 'bg-blue-600 text-white shadow-sm' : 'text-slate-500 hover:bg-slate-100'}`}
+                          >
+                            <Icon className="h-4 w-4" />
+                            {item.label}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
                   <div className="flex items-center justify-between rounded-lg bg-slate-50 px-3 py-2"><span className="text-slate-500">Role</span><span className="font-medium">{auth.role}</span></div>
                   <div className="flex items-center justify-between rounded-lg bg-slate-50 px-3 py-2"><span className="text-slate-500">Status</span><span className="font-medium">{auth.user?.verified ? 'Verified' : 'Not verified'}</span></div>
                   <Button variant="secondary" className="w-full" onClick={logout}><LogOut className="h-4 w-4" /> Logout</Button>

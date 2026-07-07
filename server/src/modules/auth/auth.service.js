@@ -14,6 +14,16 @@ function refreshExpiry() {
   return new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
 }
 
+function refreshCookieOptions() {
+  const isProduction = process.env.NODE_ENV === 'production';
+  return {
+    httpOnly: true,
+    sameSite: isProduction ? 'none' : 'lax',
+    secure: isProduction,
+    maxAge: 7 * 24 * 60 * 60 * 1000
+  };
+}
+
 async function makeSession(user, req, res) {
   const populated = await user.populate('roleId');
   const accessToken = signAccessToken(populated);
@@ -24,14 +34,35 @@ async function makeSession(user, req, res) {
     deviceInfo: req.headers['user-agent'] || '',
     expiresAt: refreshExpiry()
   });
-  res.cookie('refreshToken', refreshToken, {
-    httpOnly: true,
-    sameSite: 'strict',
-    secure: process.env.NODE_ENV === 'production',
-    maxAge: 7 * 24 * 60 * 60 * 1000
-  });
+  res.cookie('refreshToken', refreshToken, refreshCookieOptions());
   const permissions = await Permission.find({ roleId: user.roleId._id });
   return { accessToken, refreshToken, user: populated, role: populated.roleId.name, permissions };
+}
+
+async function verifyGoogleCredential(credential) {
+  if (!env.googleClientId) throw new ApiError(500, 'Google login is not configured');
+  const response = await fetch(`https://oauth2.googleapis.com/tokeninfo?id_token=${encodeURIComponent(credential)}`);
+  if (!response.ok) throw new ApiError(401, 'Invalid Google account');
+  const profile = await response.json();
+  if (profile.aud !== env.googleClientId) throw new ApiError(401, 'Google account is not allowed for this app');
+  if (profile.email_verified !== 'true' && profile.email_verified !== true) throw new ApiError(401, 'Google email is not verified');
+  return profile;
+}
+
+async function makeUniqueUsername(email, fallbackId) {
+  const base = String(email || 'google-user')
+    .split('@')[0]
+    .toLowerCase()
+    .replace(/[^a-z0-9_]/g, '')
+    .slice(0, 20) || 'googleuser';
+  let username = base;
+  let counter = 1;
+  while (await User.exists({ username })) {
+    username = `${base}${counter}`;
+    counter += 1;
+    if (counter > 50) username = `google${String(fallbackId).slice(-10)}`;
+  }
+  return username;
 }
 
 export async function register(payload, req, res) {
@@ -57,6 +88,35 @@ export async function login(payload, req, res) {
   return makeSession(user, req, res);
 }
 
+export async function googleLogin(payload, req, res) {
+  const profile = await verifyGoogleCredential(payload.credential);
+  const role = await Role.findOne({ name: ROLES.USER });
+  let user = await User.findOne({ $or: [{ googleId: profile.sub }, { email: profile.email }] });
+
+  if (user) {
+    if (user.status !== 'Active') throw new ApiError(403, 'User account is inactive');
+    if (!user.googleId) {
+      user.googleId = profile.sub;
+      user.authProvider = user.authProvider === 'local' ? 'local' : 'google';
+      await user.save();
+    }
+    return makeSession(user, req, res);
+  }
+
+  user = await User.create({
+    fullName: profile.name || profile.email,
+    username: await makeUniqueUsername(profile.email, profile.sub),
+    email: profile.email,
+    phone: `google:${profile.sub}`,
+    password: await hashPassword(`Google-${profile.sub}-${Date.now()}`),
+    googleId: profile.sub,
+    authProvider: 'google',
+    roleId: role._id
+  });
+  await createDefaultPaymentMethods(user._id);
+  return makeSession(user, req, res);
+}
+
 export async function refresh(req, res) {
   const token = req.cookies.refreshToken || req.body.refreshToken;
   if (!token) throw new ApiError(401, 'Refresh token required');
@@ -71,7 +131,7 @@ export async function refresh(req, res) {
 export async function logout(req, res) {
   const token = req.cookies.refreshToken || req.body.refreshToken;
   if (token) await RefreshToken.updateOne({ tokenHash: hashToken(token) }, { revoked: true });
-  res.clearCookie('refreshToken');
+  res.clearCookie('refreshToken', refreshCookieOptions());
   return {};
 }
 

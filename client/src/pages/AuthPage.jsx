@@ -1,5 +1,5 @@
 import { BadgeCheck, BarChart3, CheckCircle2, LockKeyhole, ShieldCheck } from 'lucide-react';
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { useDispatch } from 'react-redux';
 import { Link, useNavigate } from 'react-router-dom';
@@ -13,8 +13,10 @@ export default function AuthPage({ mode }) {
   const { register, handleSubmit, watch } = useForm();
   const [error, setError] = useState('');
   const [errors, setErrors] = useState([]);
+  const googleButtonRef = useRef(null);
   const dispatch = useDispatch();
   const navigate = useNavigate();
+  const googleClientId = import.meta.env.VITE_GOOGLE_CLIENT_ID;
   const submit = async (values) => {
     setError('');
     setErrors([]);
@@ -27,6 +29,18 @@ export default function AuthPage({ mode }) {
       setErrors(err.errors || []);
     }
   };
+  const submitGoogleCredential = async (credential) => {
+    setError('');
+    setErrors([]);
+    try {
+      const response = await api.post('/auth/google', { credential });
+      dispatch(setSession(response.data));
+      navigate('/');
+    } catch (err) {
+      setError(err.message || 'Google login failed');
+      setErrors(err.errors || []);
+    }
+  };
   const isRegister = mode === 'register';
   const password = watch('password') || '';
   const passwordRules = [
@@ -35,6 +49,43 @@ export default function AuthPage({ mode }) {
     { label: 'At least one number', pass: /\d/.test(password) },
     { label: 'At least one special character', pass: /[^A-Za-z0-9]/.test(password) }
   ];
+  useEffect(() => {
+    if (!googleClientId || !googleButtonRef.current) return;
+
+    const renderGoogleButton = () => {
+      if (!window.google?.accounts?.id || !googleButtonRef.current) return;
+      googleButtonRef.current.innerHTML = '';
+      window.google.accounts.id.initialize({
+        client_id: googleClientId,
+        callback: ({ credential }) => submitGoogleCredential(credential)
+      });
+      window.google.accounts.id.renderButton(googleButtonRef.current, {
+        theme: 'outline',
+        size: 'large',
+        shape: 'pill',
+        width: googleButtonRef.current.offsetWidth || 360,
+        text: isRegister ? 'signup_with' : 'signin_with'
+      });
+    };
+
+    if (window.google?.accounts?.id) {
+      renderGoogleButton();
+      return;
+    }
+
+    const existingScript = document.querySelector('script[src="https://accounts.google.com/gsi/client"]');
+    if (existingScript) {
+      existingScript.addEventListener('load', renderGoogleButton, { once: true });
+      return () => existingScript.removeEventListener('load', renderGoogleButton);
+    }
+
+    const script = document.createElement('script');
+    script.src = 'https://accounts.google.com/gsi/client';
+    script.async = true;
+    script.defer = true;
+    script.onload = renderGoogleButton;
+    document.body.appendChild(script);
+  }, [googleClientId, isRegister]);
   return (
     <main className="min-h-screen bg-slate-950">
       <div className="grid min-h-screen lg:grid-cols-[1.1fr_0.9fr]">
@@ -75,6 +126,25 @@ export default function AuthPage({ mode }) {
               </div>
               <h1 className="text-2xl font-bold tracking-tight text-slate-950">{isRegister ? 'Create your account' : 'Welcome back'}</h1>
               <p className="mt-1 text-sm text-slate-500">{isRegister ? 'Start managing your finance workspace securely.' : 'Login to continue to your finance dashboard.'}</p>
+            </div>
+            <div className="mb-5">
+              {googleClientId ? (
+                <div ref={googleButtonRef} className="min-h-11 w-full" />
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => setError('Google login is not configured yet. Add VITE_GOOGLE_CLIENT_ID in client env and GOOGLE_CLIENT_ID in server env.')}
+                  className="flex w-full items-center justify-center gap-3 rounded-full border border-slate-200 bg-white px-4 py-3 text-sm font-semibold text-slate-700 shadow-sm transition hover:bg-slate-50"
+                >
+                  <span className="grid h-5 w-5 place-items-center rounded-full bg-white text-base font-bold text-blue-600 shadow-sm">G</span>
+                  Continue with Google
+                </button>
+              )}
+              <div className="mt-5 flex items-center gap-3">
+                <div className="h-px flex-1 bg-slate-200" />
+                <span className="text-xs font-semibold uppercase tracking-wide text-slate-400">or use email</span>
+                <div className="h-px flex-1 bg-slate-200" />
+              </div>
             </div>
             <div className="space-y-4">
               {isRegister && <Input label="Full Name" autoComplete="name" {...register('fullName')} />}

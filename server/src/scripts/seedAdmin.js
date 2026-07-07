@@ -14,9 +14,19 @@ if (!env.superAdminEmail || !env.superAdminPassword) {
 }
 
 const role = await Role.findOne({ name: ROLES.SUPER_ADMIN });
-const existing = await User.findOne({ roleId: role._id });
+const existing = await User.findOne({ email: env.superAdminEmail });
 
-if (!existing) {
+if (existing) {
+  existing.fullName = env.superAdminName;
+  existing.username = env.superAdminEmail.split('@')[0];
+  existing.password = await hashPassword(env.superAdminPassword);
+  existing.roleId = role._id;
+  existing.verified = true;
+  existing.status = 'Active';
+  existing.forcePasswordChange = false;
+  await existing.save();
+  process.stdout.write('Super Admin updated\n');
+} else {
   await User.create({
     fullName: env.superAdminName,
     username: env.superAdminEmail.split('@')[0],
@@ -28,8 +38,6 @@ if (!existing) {
     status: 'Active'
   });
   process.stdout.write('Super Admin created\n');
-} else {
-  process.stdout.write('Super Admin already exists\n');
 }
 
 process.exit(0);

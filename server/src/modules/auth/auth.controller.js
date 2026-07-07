@@ -17,6 +17,13 @@ export const login = asyncHandler(async (req, res) => {
   ok(res, 'Logged in successfully', data);
 });
 
+export const googleLogin = asyncHandler(async (req, res) => {
+  const data = await service.googleLogin(req.body, req, res);
+  req.user = { userId: data.user._id };
+  await logActivity(req, 'auth', 'Google Login', 'User logged in with Google');
+  ok(res, 'Logged in with Google successfully', data);
+});
+
 export const refresh = asyncHandler(async (req, res) => ok(res, 'Token refreshed', await service.refresh(req, res)));
 
 export const logout = asyncHandler(async (req, res) => {

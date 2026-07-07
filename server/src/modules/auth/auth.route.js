@@ -8,6 +8,7 @@ export const authRoutes = Router();
 
 authRoutes.post('/register', validate(registerSchema), controller.register);
 authRoutes.post('/login', validate(loginSchema), controller.login);
+authRoutes.post('/google', controller.googleLogin);
 authRoutes.post('/refresh', controller.refresh);
 authRoutes.post('/logout', auth, controller.logout);
 authRoutes.patch('/change-password', auth, validate(changePasswordSchema), controller.changePassword);
