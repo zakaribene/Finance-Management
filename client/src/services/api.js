@@ -20,7 +20,8 @@ api.interceptors.response.use(
   (response) => response.data,
   async (error) => {
     const original = error.config;
-    if (error.response?.status === 401 && !original._retry && !original.url.includes('/auth/refresh')) {
+    const isAuthEndpoint = /\/auth\/(login|register|refresh)$/.test(original.url);
+    if (error.response?.status === 401 && !original._retry && !isAuthEndpoint) {
       original._retry = true;
       const refreshed = await api.post('/auth/refresh');
       setAccessToken(refreshed.data.accessToken);
