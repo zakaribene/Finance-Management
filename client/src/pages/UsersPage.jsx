@@ -1,4 +1,4 @@
-import { CheckCircle2, Pencil, ShieldCheck, XCircle } from 'lucide-react';
+import { CheckCircle2, Pencil, XCircle } from 'lucide-react';
 import { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import Button from '../components/Button.jsx';
@@ -8,6 +8,7 @@ import Modal from '../components/Modal.jsx';
 import Select from '../components/Select.jsx';
 import Table from '../components/Table.jsx';
 import Toast from '../components/Toast.jsx';
+import VerifiedBadge from '../components/VerifiedBadge.jsx';
 import { useResource } from '../hooks/useResource.js';
 import { api } from '../services/api.js';
 
@@ -66,7 +67,7 @@ export default function UsersPage() {
       </div>
       <Toast message={message} />
       <Table columns={[
-        { key: 'fullName', label: 'Name', render: (r) => <div className="flex items-center gap-2"><span className="font-medium text-slate-900">{r.fullName}</span>{r.verified && <ShieldCheck className="h-4 w-4 text-blue-600" />}</div> },
+        { key: 'fullName', label: 'Name', render: (r) => <div className="flex items-center gap-2"><span className="font-medium text-slate-900">{r.fullName}</span>{r.verified && <VerifiedBadge size="sm" />}</div> },
         { key: 'email', label: 'Email' },
         { key: 'roleId', label: 'Role', render: (r) => r.roleId?.name },
         { key: 'status', label: 'Status', render: (r) => <span className={`rounded-full px-2 py-1 text-xs font-medium ${r.status === 'Active' ? 'bg-emerald-50 text-emerald-700' : 'bg-slate-100 text-slate-600'}`}>{r.status}</span> },

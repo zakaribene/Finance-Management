@@ -46,6 +46,9 @@ export function createApp() {
   app.use('/api/v1/activity-logs', activityLogRoutes);
   app.use('/api/v1/settings', settingRoutes);
 
+  app.get('/', (req, res) => res.json({ success: true, message: 'Finance Management API is running' }));
+  app.get('/api/v1', (req, res) => res.json({ success: true, message: 'Finance Management API v1 is running' }));
+
   app.use(notFound);
   app.use(errorMiddleware);
   return app;

@@ -1,9 +1,10 @@
-import { BadgeCheck, Bell, CheckCheck, ChevronDown, LayoutDashboard, LogOut, Monitor, Moon, Receipt, Repeat2, Settings, Shield, Sun, Users, WalletCards, X } from 'lucide-react';
+import { Bell, CheckCheck, ChevronDown, LayoutDashboard, LogOut, Monitor, Moon, Receipt, Repeat2, Settings, Shield, Sun, Users, WalletCards, X } from 'lucide-react';
 import { NavLink, Outlet, useNavigate } from 'react-router-dom';
 import { useDispatch, useSelector } from 'react-redux';
 import { useEffect, useMemo, useState } from 'react';
 import { io } from 'socket.io-client';
 import Button from '../components/Button.jsx';
+import VerifiedBadge from '../components/VerifiedBadge.jsx';
 import { api } from '../services/api.js';
 import { clearSession } from '../store/authSlice.js';
 import { can } from '../utils/permissions.js';
@@ -118,7 +119,7 @@ export default function AppLayout() {
             <button onClick={() => setProfileOpen((value) => !value)} className="flex items-center gap-3 rounded-full border border-slate-200 bg-white py-1.5 pl-1.5 pr-3 shadow-sm transition hover:bg-slate-50">
               <span className="grid h-9 w-9 place-items-center rounded-full bg-gradient-to-br from-blue-600 to-slate-900 text-sm font-semibold text-white">{initials}</span>
               <span className="hidden text-left sm:block">
-                <span className="flex items-center gap-1 text-sm font-semibold text-slate-950">{auth.user?.fullName || 'User'}{auth.user?.verified && <BadgeCheck className="h-4 w-4 fill-blue-600 text-white" />}</span>
+                <span className="flex items-center gap-1 text-sm font-semibold text-slate-950">{auth.user?.fullName || 'User'}{auth.user?.verified && <VerifiedBadge size="sm" />}</span>
                 <span className="block text-xs text-slate-500">{auth.role}</span>
               </span>
               <ChevronDown className="h-4 w-4 text-slate-400" />
@@ -160,7 +161,7 @@ export default function AppLayout() {
                   <div className="flex items-center gap-3">
                     <span className="grid h-14 w-14 place-items-center rounded-full bg-white/15 text-lg font-semibold ring-1 ring-white/20">{initials}</span>
                     <div>
-                      <p className="flex items-center gap-1 font-semibold">{auth.user?.fullName || 'User'}{auth.user?.verified && <BadgeCheck className="h-5 w-5 fill-blue-500 text-white" />}</p>
+                      <p className="flex items-center gap-1 font-semibold">{auth.user?.fullName || 'User'}{auth.user?.verified && <VerifiedBadge />}</p>
                       <p className="text-sm text-slate-300">{auth.user?.email}</p>
                     </div>
                   </div>
