@@ -1,6 +1,7 @@
-import { CheckCircle2, Pencil, XCircle } from 'lucide-react';
+import { CheckCircle2, Pencil, Trash2, XCircle } from 'lucide-react';
 import { useState } from 'react';
 import { useForm } from 'react-hook-form';
+import { useSelector } from 'react-redux';
 import Button from '../components/Button.jsx';
 import Input from '../components/Input.jsx';
 import Loader from '../components/Loader.jsx';
@@ -14,6 +15,7 @@ import { api } from '../services/api.js';
 
 export default function UsersPage() {
   const { loading, data, reload } = useResource('/users');
+  const auth = useSelector((state) => state.auth);
   const [message, setMessage] = useState('');
   const [error, setError] = useState('');
   const [editing, setEditing] = useState(null);
@@ -28,6 +30,17 @@ export default function UsersPage() {
     await api.patch(`/users/status/${user._id}`, { status });
     setMessage(`User marked ${status}`);
     reload();
+  };
+  const deleteUser = async (user) => {
+    if (!confirm(`Delete ${user.fullName}? This cannot be undone.`)) return;
+    setError('');
+    try {
+      await api.delete(`/users/${user._id}`);
+      setMessage(`User deleted: ${user.email}`);
+      reload();
+    } catch (err) {
+      setError(err.message || 'Delete failed');
+    }
   };
   const openEdit = (user) => {
     setEditing(user);
@@ -66,6 +79,7 @@ export default function UsersPage() {
         <p className="mt-1 text-sm text-slate-300">Edit users, change login details, set passwords, verify accounts, and control access.</p>
       </div>
       <Toast message={message} />
+      <Toast type="error" message={error} />
       <Table columns={[
         { key: 'fullName', label: 'Name', render: (r) => <div className="flex items-center gap-2"><span className="font-medium text-slate-900">{r.fullName}</span>{r.verified && <VerifiedBadge size="sm" />}</div> },
         { key: 'email', label: 'Email' },
@@ -77,6 +91,9 @@ export default function UsersPage() {
             <Button variant="secondary" onClick={() => updateVerify(r)}>{r.verified ? <XCircle className="h-4 w-4" /> : <CheckCircle2 className="h-4 w-4" />} {r.verified ? 'Unverify' : 'Verify'}</Button>
             <Button variant="secondary" onClick={() => updateStatus(r)}>{r.status === 'Active' ? 'Deactivate' : 'Activate'}</Button>
             <Button variant="secondary" onClick={() => openEdit(r)}><Pencil className="h-4 w-4" /> Edit</Button>
+            {r._id !== auth.user?._id && (
+              <Button variant="danger" onClick={() => deleteUser(r)}><Trash2 className="h-4 w-4" /> Delete</Button>
+            )}
           </div>
         ) }
       ]} rows={data?.data || []} />
