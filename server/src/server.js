@@ -4,7 +4,7 @@ import { createApp } from './app.js';
 import { connectDb } from './config/db.js';
 import { env } from './config/env.js';
 import { startActivityRetentionJob } from './jobs/activityRetention.job.js';
-import { seedBaseData } from './scripts/seedBaseData.js';
+import { seedBaseData, seedSuperAdmin } from './scripts/seedBaseData.js';
 
 const app = createApp();
 const server = http.createServer(app);
@@ -18,6 +18,7 @@ io.on('connection', (socket) => {
 
 await connectDb();
 await seedBaseData();
+await seedSuperAdmin();
 startActivityRetentionJob();
 
 server.listen(env.port, () => {
