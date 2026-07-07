@@ -32,11 +32,13 @@ export async function seedSuperAdmin() {
   }
 
   const role = await Role.findOne({ name: ROLES.SUPER_ADMIN });
-  const existing = await User.findOne({ email: env.superAdminEmail });
+  const username = env.superAdminEmail.split('@')[0];
+  const existing = await User.findOne({ $or: [{ email: env.superAdminEmail }, { username }] });
 
   if (existing) {
     existing.fullName = env.superAdminName;
-    existing.username = env.superAdminEmail.split('@')[0];
+    existing.username = username;
+    existing.email = env.superAdminEmail;
     existing.password = await hashPassword(env.superAdminPassword);
     existing.roleId = role._id;
     existing.verified = true;
@@ -47,7 +49,7 @@ export async function seedSuperAdmin() {
   } else {
     await User.create({
       fullName: env.superAdminName,
-      username: env.superAdminEmail.split('@')[0],
+      username,
       email: env.superAdminEmail,
       phone: '0000000000',
       password: await hashPassword(env.superAdminPassword),
