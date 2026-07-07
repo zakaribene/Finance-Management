@@ -10,6 +10,7 @@ export const env = {
   jwtRefreshSecret: process.env.JWT_REFRESH_SECRET || 'dev-refresh-secret',
   jwtAccessExpire: process.env.JWT_ACCESS_EXPIRE || '15m',
   jwtRefreshExpire: process.env.JWT_REFRESH_EXPIRE || '7d',
+  googleClientId: process.env.GOOGLE_CLIENT_ID,
   superAdminEmail: process.env.SUPER_ADMIN_EMAIL,
   superAdminPassword: process.env.SUPER_ADMIN_PASSWORD,
   superAdminName: process.env.SUPER_ADMIN_NAME || 'Super Admin'
