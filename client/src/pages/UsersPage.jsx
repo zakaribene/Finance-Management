@@ -1,6 +1,7 @@
-import { CheckCircle2, Pencil, XCircle } from 'lucide-react';
+import { CheckCircle2, Pencil, Trash2, XCircle } from 'lucide-react';
 import { useState } from 'react';
 import { useForm } from 'react-hook-form';
+import { useSelector } from 'react-redux';
 import Button from '../components/Button.jsx';
 import Input from '../components/Input.jsx';
 import Loader from '../components/Loader.jsx';
@@ -13,10 +14,12 @@ import { useResource } from '../hooks/useResource.js';
 import { api } from '../services/api.js';
 
 export default function UsersPage() {
+  const currentUser = useSelector((state) => state.auth.user);
   const { loading, data, reload } = useResource('/users');
   const [message, setMessage] = useState('');
   const [error, setError] = useState('');
   const [editing, setEditing] = useState(null);
+  const [deleting, setDeleting] = useState(null);
   const { register, handleSubmit, reset } = useForm();
   const updateVerify = async (user) => {
     await api.patch(`/users/verify/${user._id}`, { verified: !user.verified });
@@ -58,6 +61,18 @@ export default function UsersPage() {
       setError(err.message || 'Update failed');
     }
   };
+  const deleteUser = async () => {
+    if (!deleting) return;
+    setError('');
+    try {
+      await api.delete(`/users/${deleting._id}`);
+      setMessage(`User deleted: ${deleting.email}`);
+      setDeleting(null);
+      reload();
+    } catch (err) {
+      setError(err.message || 'Delete failed');
+    }
+  };
   if (loading) return <Loader />;
   return (
     <div className="space-y-5">
@@ -77,6 +92,7 @@ export default function UsersPage() {
             <Button variant="secondary" onClick={() => updateVerify(r)}>{r.verified ? <XCircle className="h-4 w-4" /> : <CheckCircle2 className="h-4 w-4" />} {r.verified ? 'Unverify' : 'Verify'}</Button>
             <Button variant="secondary" onClick={() => updateStatus(r)}>{r.status === 'Active' ? 'Deactivate' : 'Activate'}</Button>
             <Button variant="secondary" onClick={() => openEdit(r)}><Pencil className="h-4 w-4" /> Edit</Button>
+            <Button variant="danger" disabled={r._id === currentUser?._id} onClick={() => setDeleting(r)}><Trash2 className="h-4 w-4" /> Delete</Button>
           </div>
         ) }
       ]} rows={data?.data || []} />
@@ -106,6 +122,19 @@ export default function UsersPage() {
             <Button type="submit">Save Changes</Button>
           </div>
         </form>
+      </Modal>
+      <Modal open={!!deleting} title="Delete user" onClose={() => setDeleting(null)}>
+        <div className="space-y-4">
+          <div className="rounded-2xl border border-red-100 bg-red-50 p-4 text-sm text-red-800">
+            <p className="font-semibold">Are you sure you want to delete this user?</p>
+            <p className="mt-2">This will remove <span className="font-semibold">{deleting?.fullName}</span> from the system.</p>
+          </div>
+          <Toast type="error" message={error} />
+          <div className="flex justify-end gap-2">
+            <Button variant="secondary" type="button" onClick={() => setDeleting(null)}>Cancel</Button>
+            <Button variant="danger" type="button" onClick={deleteUser}><Trash2 className="h-4 w-4" /> Delete User</Button>
+          </div>
+        </div>
       </Modal>
     </div>
   );
