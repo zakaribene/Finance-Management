@@ -1,8 +1,12 @@
 import { ROLES } from '../../constants/index.js';
 import { ApiError } from '../../utils/ApiError.js';
 import { hashPassword, isStrongPassword, makeTemporaryPassword } from '../../utils/password.js';
+import { Expense } from '../expenses/expense.model.js';
+import { Income } from '../income/income.model.js';
 import { createDefaultPaymentMethods } from '../payment-methods/paymentMethod.service.js';
+import { PaymentMethod } from '../payment-methods/paymentMethod.model.js';
 import { Role } from '../roles/role.model.js';
+import { Transfer } from '../transfers/transfer.model.js';
 import { User } from './user.model.js';
 
 export async function listUsers(query) {
@@ -63,6 +67,12 @@ export async function updateUser(id, payload) {
 export async function deleteUser(id) {
   const user = await User.findByIdAndDelete(id);
   if (!user) throw new ApiError(404, 'User not found');
+  await Promise.all([
+    Income.deleteMany({ userId: id }),
+    Expense.deleteMany({ userId: id }),
+    Transfer.deleteMany({ userId: id }),
+    PaymentMethod.deleteMany({ userId: id })
+  ]);
   return user;
 }
 
