@@ -1,3 +1,5 @@
+import path from 'path';
+import { fileURLToPath } from 'url';
 import cookieParser from 'cookie-parser';
 import cors from 'cors';
 import express from 'express';
@@ -20,6 +22,9 @@ import { roleRoutes } from './modules/roles/role.route.js';
 import { settingRoutes } from './modules/settings/setting.route.js';
 import { transferRoutes } from './modules/transfers/transfer.route.js';
 import { userRoutes } from './modules/users/user.route.js';
+
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+const clientDistPath = path.join(__dirname, '../../client/dist');
 
 export function createApp() {
   const app = express();
@@ -46,8 +51,13 @@ export function createApp() {
   app.use('/api/v1/activity-logs', activityLogRoutes);
   app.use('/api/v1/settings', settingRoutes);
 
-  app.get('/', (req, res) => res.json({ success: true, message: 'Finance Management API is running' }));
   app.get('/api/v1', (req, res) => res.json({ success: true, message: 'Finance Management API v1 is running' }));
+
+  app.use(express.static(clientDistPath));
+  app.get('*', (req, res, next) => {
+    if (req.path.startsWith('/api')) return next();
+    res.sendFile(path.join(clientDistPath, 'index.html'));
+  });
 
   app.use(notFound);
   app.use(errorMiddleware);

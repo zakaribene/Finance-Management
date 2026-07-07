@@ -50,7 +50,8 @@ export default function AppLayout() {
   };
   useEffect(() => {
     loadNotifications();
-    const socketUrl = (import.meta.env.VITE_API_URL || 'http://localhost:5000/api/v1').replace('/api/v1', '');
+    const configuredApiUrl = import.meta.env.VITE_API_URL || (import.meta.env.DEV ? 'http://localhost:5000/api/v1' : undefined);
+    const socketUrl = configuredApiUrl?.replace('/api/v1', '');
     const socket = io(socketUrl, { auth: { userId: auth.user?._id } });
     socket.on('notification:new', loadNotifications);
     const timer = setInterval(loadNotifications, 30000);
