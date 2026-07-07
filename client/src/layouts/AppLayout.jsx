@@ -1,4 +1,4 @@
-import { BadgeCheck, Bell, CheckCheck, ChevronDown, LayoutDashboard, LogOut, Receipt, Repeat2, Settings, Shield, UserCircle, Users, WalletCards, X } from 'lucide-react';
+import { BadgeCheck, Bell, CheckCheck, ChevronDown, LayoutDashboard, LogOut, Monitor, Moon, Receipt, Repeat2, Settings, Shield, Sun, Users, WalletCards, X } from 'lucide-react';
 import { NavLink, Outlet, useNavigate } from 'react-router-dom';
 import { useDispatch, useSelector } from 'react-redux';
 import { useEffect, useMemo, useState } from 'react';
@@ -25,11 +25,24 @@ export default function AppLayout() {
   const auth = useSelector((state) => state.auth);
   const dispatch = useDispatch();
   const navigate = useNavigate();
+  const [theme, setTheme] = useState(() => localStorage.getItem('theme') || 'system');
   const [notifications, setNotifications] = useState([]);
   const [notificationOpen, setNotificationOpen] = useState(false);
   const [profileOpen, setProfileOpen] = useState(false);
   const unreadCount = useMemo(() => notifications.filter((item) => !item.isRead).length, [notifications]);
   const initials = (auth.user?.fullName || auth.user?.email || 'U').split(' ').map((item) => item[0]).join('').slice(0, 2).toUpperCase();
+  useEffect(() => {
+    const media = window.matchMedia('(prefers-color-scheme: dark)');
+    const applyTheme = () => {
+      const shouldUseDark = theme === 'dark' || (theme === 'system' && media.matches);
+      document.documentElement.classList.toggle('dark', shouldUseDark);
+      document.documentElement.style.colorScheme = shouldUseDark ? 'dark' : 'light';
+      localStorage.setItem('theme', theme);
+    };
+    applyTheme();
+    media.addEventListener('change', applyTheme);
+    return () => media.removeEventListener('change', applyTheme);
+  }, [theme]);
   const loadNotifications = async () => {
     const response = await api.get('/notifications').catch(() => ({ data: [] }));
     setNotifications(response.data || []);
@@ -79,6 +92,25 @@ export default function AppLayout() {
             <p className="text-base font-semibold text-slate-950">{auth.user?.fullName || auth.user?.email}</p>
           </div>
           <div className="relative flex items-center gap-3">
+            <div className="hidden items-center rounded-full border border-slate-200 bg-white p-1 shadow-sm sm:flex">
+              {[
+                { value: 'light', icon: Sun, label: 'Light' },
+                { value: 'dark', icon: Moon, label: 'Dark' },
+                { value: 'system', icon: Monitor, label: 'System' }
+              ].map((item) => {
+                const Icon = item.icon;
+                return (
+                  <button
+                    key={item.value}
+                    onClick={() => setTheme(item.value)}
+                    className={`grid h-9 w-9 place-items-center rounded-full transition ${theme === item.value ? 'bg-blue-600 text-white shadow-sm' : 'text-slate-500 hover:bg-slate-100'}`}
+                    title={item.label}
+                  >
+                    <Icon className="h-4 w-4" />
+                  </button>
+                );
+              })}
+            </div>
             <button onClick={() => setNotificationOpen((value) => !value)} className="relative grid h-11 w-11 place-items-center rounded-full border border-slate-200 bg-white text-slate-700 shadow-sm transition hover:bg-slate-50" title="Notifications">
               <Bell className="h-5 w-5" />
               {unreadCount > 0 && <span className="absolute -right-1 -top-1 grid h-5 min-w-5 place-items-center rounded-full bg-blue-600 px-1 text-xs font-semibold text-white">{unreadCount}</span>}

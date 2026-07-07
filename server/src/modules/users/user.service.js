@@ -1,6 +1,6 @@
 import { ROLES } from '../../constants/index.js';
 import { ApiError } from '../../utils/ApiError.js';
-import { hashPassword, makeTemporaryPassword } from '../../utils/password.js';
+import { hashPassword, isStrongPassword, makeTemporaryPassword } from '../../utils/password.js';
 import { createDefaultPaymentMethods } from '../payment-methods/paymentMethod.service.js';
 import { Role } from '../roles/role.model.js';
 import { User } from './user.model.js';
@@ -32,9 +32,30 @@ export async function createUser(payload, actorId) {
 }
 
 export async function updateUser(id, payload) {
-  delete payload.password;
   delete payload.roleId;
-  const user = await User.findByIdAndUpdate(id, payload, { new: true }).populate('roleId', 'name').select('-password');
+  const allowed = {};
+  ['fullName', 'username', 'email', 'phone', 'status', 'verified', 'forcePasswordChange'].forEach((field) => {
+    if (payload[field] !== undefined) allowed[field] = payload[field];
+  });
+  if (payload.password) {
+    if (!isStrongPassword(String(payload.password))) {
+      throw new ApiError(422, 'Validation failed', ['Password must be 8+ chars with upper, lower, number, and special character.']);
+    }
+    allowed.password = await hashPassword(payload.password);
+    allowed.forcePasswordChange = false;
+  }
+  if (allowed.email || allowed.username || allowed.phone) {
+    const duplicate = await User.findOne({
+      _id: { $ne: id },
+      $or: [
+        ...(allowed.email ? [{ email: allowed.email }] : []),
+        ...(allowed.username ? [{ username: allowed.username }] : []),
+        ...(allowed.phone ? [{ phone: allowed.phone }] : [])
+      ]
+    });
+    if (duplicate) throw new ApiError(409, 'Email, username, or phone already exists');
+  }
+  const user = await User.findByIdAndUpdate(id, allowed, { new: true }).populate('roleId', 'name').select('-password');
   if (!user) throw new ApiError(404, 'User not found');
   return user;
 }
