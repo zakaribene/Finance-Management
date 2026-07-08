@@ -1,3 +1,4 @@
+import { ROLES } from '../../constants/index.js';
 import { Expense } from '../expenses/expense.model.js';
 import { Income } from '../income/income.model.js';
 import { NotificationRecipient } from '../notifications/notificationRecipient.model.js';
@@ -9,15 +10,32 @@ const sum = async (Model, filter) => (await Model.aggregate([{ $match: filter },
 
 export async function getDashboard(req) {
   const filter = financialReadFilter(req, req.query.userId ? { userId: req.query.userId } : {});
-  const [totalIncome, totalExpense, methods, income, expenses, transfers, notifications] = await Promise.all([
+  const isAllUsersView = req.user.role === ROLES.SUPER_ADMIN && !req.query.userId;
+  const [totalIncome, totalExpense, methods, groupedBalances, income, expenses, transfers, notifications] = await Promise.all([
     sum(Income, filter),
     sum(Expense, filter),
     PaymentMethod.find(filter).sort('name'),
+    isAllUsersView
+      ? PaymentMethod.aggregate([
+        { $match: filter },
+        { $group: { _id: '$name', currentBalance: { $sum: '$currentBalance' } } },
+        { $project: { _id: 0, name: '$_id', currentBalance: 1 } },
+        { $sort: { name: 1 } }
+      ])
+      : null,
     Income.find(filter).populate('paymentMethod', 'name').sort({ date: -1 }).limit(10),
     Expense.find(filter).populate('paymentMethod', 'name').sort({ date: -1 }).limit(10),
     Transfer.find(filter).populate('fromPaymentMethod toPaymentMethod', 'name').sort({ transferDate: -1 }).limit(10),
     NotificationRecipient.find({ userId: req.user.userId }).populate('notificationId').sort({ _id: -1 }).limit(10)
   ]);
   const currentBalance = methods.reduce((total, item) => total + item.currentBalance, 0);
-  return { totalIncome, totalExpense, currentBalance, totalPaymentMethods: methods.length, paymentMethodBalances: methods, recentTransactions: { income, expenses, transfers }, recentNotifications: notifications };
+  return {
+    totalIncome,
+    totalExpense,
+    currentBalance,
+    totalPaymentMethods: methods.length,
+    paymentMethodBalances: isAllUsersView ? groupedBalances : methods,
+    recentTransactions: { income, expenses, transfers },
+    recentNotifications: notifications
+  };
 }
