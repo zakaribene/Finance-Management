@@ -1,4 +1,4 @@
-const CACHE_NAME = 'finance-management-saas-v1';
+const CACHE_NAME = 'finance-management-saas-v2';
 const APP_SHELL = ['/', '/manifest.webmanifest', '/icons/icon.svg'];
 
 self.addEventListener('install', (event) => {
@@ -16,6 +16,7 @@ self.addEventListener('activate', (event) => {
 self.addEventListener('fetch', (event) => {
   const request = event.request;
   if (request.method !== 'GET') return;
+  if (!request.url.startsWith('http')) return;
   if (new URL(request.url).pathname.startsWith('/api/')) return;
   event.respondWith(
     fetch(request)
