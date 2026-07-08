@@ -50,7 +50,7 @@ export default function AuthPage({ mode }) {
   const signInWithGoogle = async () => {
     setError('');
     setErrors([]);
-    await authClient.signIn.social({ provider: 'google', callbackURL: '/' });
+    await authClient.signIn.social({ provider: 'google', callbackURL: `${window.location.origin}/` });
   };
   const password = watch('password') || '';
   const passwordRules = [
