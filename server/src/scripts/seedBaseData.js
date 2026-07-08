@@ -1,10 +1,20 @@
 import { env } from '../config/env.js';
 import { MODULES, ROLES } from '../constants/index.js';
+import { Account } from '../modules/auth/account.model.js';
 import { Permission } from '../modules/permissions/permission.model.js';
 import { Role } from '../modules/roles/role.model.js';
 import { Setting } from '../modules/settings/setting.model.js';
 import { User } from '../modules/users/user.model.js';
 import { hashPassword } from '../utils/password.js';
+
+async function upsertCredentialAccount(userId, plainPassword) {
+  const password = await hashPassword(plainPassword);
+  await Account.findOneAndUpdate(
+    { userId, providerId: 'credential' },
+    { userId, providerId: 'credential', accountId: String(userId), password },
+    { upsert: true }
+  );
+}
 
 export async function seedBaseData() {
   const superAdmin = await Role.findOneAndUpdate({ name: ROLES.SUPER_ADMIN }, { name: ROLES.SUPER_ADMIN }, { upsert: true, new: true });
@@ -39,24 +49,24 @@ export async function seedSuperAdmin() {
     existing.fullName = env.superAdminName;
     existing.username = username;
     existing.email = env.superAdminEmail;
-    existing.password = await hashPassword(env.superAdminPassword);
     existing.roleId = role._id;
     existing.verified = true;
     existing.status = 'Active';
     existing.forcePasswordChange = false;
     await existing.save();
+    await upsertCredentialAccount(existing._id, env.superAdminPassword);
     process.stdout.write('Super Admin updated\n');
   } else {
-    await User.create({
+    const user = await User.create({
       fullName: env.superAdminName,
       username,
       email: env.superAdminEmail,
       phone: '0000000000',
-      password: await hashPassword(env.superAdminPassword),
       roleId: role._id,
       verified: true,
       status: 'Active'
     });
+    await upsertCredentialAccount(user._id, env.superAdminPassword);
     process.stdout.write('Super Admin created\n');
   }
 }

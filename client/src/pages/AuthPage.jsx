@@ -1,11 +1,12 @@
 import { BadgeCheck, BarChart3, CheckCircle2, LockKeyhole, ShieldCheck } from 'lucide-react';
-import { useEffect, useRef, useState } from 'react';
+import { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { useDispatch } from 'react-redux';
 import { Link, useNavigate } from 'react-router-dom';
 import Button from '../components/Button.jsx';
 import Input from '../components/Input.jsx';
 import Toast from '../components/Toast.jsx';
+import { authClient } from '../lib/authClient.js';
 import { api } from '../services/api.js';
 import { setSession } from '../store/authSlice.js';
 
@@ -13,35 +14,41 @@ export default function AuthPage({ mode }) {
   const { register, handleSubmit, watch } = useForm();
   const [error, setError] = useState('');
   const [errors, setErrors] = useState([]);
-  const googleButtonRef = useRef(null);
   const dispatch = useDispatch();
   const navigate = useNavigate();
-  const googleClientId = import.meta.env.VITE_GOOGLE_CLIENT_ID;
+  const isRegister = mode === 'register';
+  const hydrateSession = async () => {
+    const session = await api.get('/auth/session');
+    dispatch(setSession(session.data));
+    navigate('/');
+  };
   const submit = async (values) => {
     setError('');
     setErrors([]);
-    try {
-      const response = await api.post(`/auth/${mode}`, values);
-      dispatch(setSession(response.data));
-      navigate('/');
-    } catch (err) {
-      setError(err.message || 'Authentication failed');
-      setErrors(err.errors || []);
+    if (isRegister && values.password !== values.confirmPassword) {
+      setErrors(['Confirm password must match.']);
+      return;
     }
+    const { error: authError } = isRegister
+      ? await authClient.signUp.email({
+        email: values.email,
+        password: values.password,
+        name: values.fullName,
+        username: values.username,
+        phone: values.phone
+      })
+      : await authClient.signIn.email({ email: values.email, password: values.password });
+    if (authError) {
+      setError(authError.message || 'Authentication failed');
+      return;
+    }
+    await hydrateSession();
   };
-  const submitGoogleCredential = async (credential) => {
+  const signInWithGoogle = async () => {
     setError('');
     setErrors([]);
-    try {
-      const response = await api.post('/auth/google', { credential });
-      dispatch(setSession(response.data));
-      navigate('/');
-    } catch (err) {
-      setError(err.message || 'Google login failed');
-      setErrors(err.errors || []);
-    }
+    await authClient.signIn.social({ provider: 'google', callbackURL: '/' });
   };
-  const isRegister = mode === 'register';
   const password = watch('password') || '';
   const passwordRules = [
     { label: 'At least 8 characters', pass: password.length >= 8 },
@@ -49,43 +56,6 @@ export default function AuthPage({ mode }) {
     { label: 'At least one number', pass: /\d/.test(password) },
     { label: 'At least one special character', pass: /[^A-Za-z0-9]/.test(password) }
   ];
-  useEffect(() => {
-    if (!googleClientId || !googleButtonRef.current) return;
-
-    const renderGoogleButton = () => {
-      if (!window.google?.accounts?.id || !googleButtonRef.current) return;
-      googleButtonRef.current.innerHTML = '';
-      window.google.accounts.id.initialize({
-        client_id: googleClientId,
-        callback: ({ credential }) => submitGoogleCredential(credential)
-      });
-      window.google.accounts.id.renderButton(googleButtonRef.current, {
-        theme: 'outline',
-        size: 'large',
-        shape: 'pill',
-        width: googleButtonRef.current.offsetWidth || 360,
-        text: isRegister ? 'signup_with' : 'signin_with'
-      });
-    };
-
-    if (window.google?.accounts?.id) {
-      renderGoogleButton();
-      return;
-    }
-
-    const existingScript = document.querySelector('script[src="https://accounts.google.com/gsi/client"]');
-    if (existingScript) {
-      existingScript.addEventListener('load', renderGoogleButton, { once: true });
-      return () => existingScript.removeEventListener('load', renderGoogleButton);
-    }
-
-    const script = document.createElement('script');
-    script.src = 'https://accounts.google.com/gsi/client';
-    script.async = true;
-    script.defer = true;
-    script.onload = renderGoogleButton;
-    document.body.appendChild(script);
-  }, [googleClientId, isRegister]);
   return (
     <main className="min-h-screen bg-slate-950">
       <div className="grid min-h-screen lg:grid-cols-[1.1fr_0.9fr]">
@@ -113,7 +83,7 @@ export default function AuthPage({ mode }) {
             <div className="rounded-2xl border border-white/10 bg-white/10 p-5 backdrop-blur">
               <LockKeyhole className="h-6 w-6 text-blue-200" />
               <p className="mt-4 text-sm font-semibold">Protected sessions</p>
-              <p className="mt-1 text-xs text-slate-300">JWT access and refresh token model.</p>
+              <p className="mt-1 text-xs text-slate-300">Secure cookie-based sessions with Google sign-in.</p>
             </div>
           </div>
         </section>
@@ -128,18 +98,14 @@ export default function AuthPage({ mode }) {
               <p className="mt-1 text-sm text-slate-500">{isRegister ? 'Start managing your finance workspace securely.' : 'Login to continue to your finance dashboard.'}</p>
             </div>
             <div className="mb-5">
-              {googleClientId ? (
-                <div ref={googleButtonRef} className="min-h-11 w-full" />
-              ) : (
-                <button
-                  type="button"
-                  onClick={() => setError('Google login is not configured yet. Add VITE_GOOGLE_CLIENT_ID in client env and GOOGLE_CLIENT_ID in server env.')}
-                  className="flex w-full items-center justify-center gap-3 rounded-full border border-slate-200 bg-white px-4 py-3 text-sm font-semibold text-slate-700 shadow-sm transition hover:bg-slate-50"
-                >
-                  <span className="grid h-5 w-5 place-items-center rounded-full bg-white text-base font-bold text-blue-600 shadow-sm">G</span>
-                  Continue with Google
-                </button>
-              )}
+              <button
+                type="button"
+                onClick={signInWithGoogle}
+                className="flex w-full items-center justify-center gap-3 rounded-full border border-slate-200 bg-white px-4 py-3 text-sm font-semibold text-slate-700 shadow-sm transition hover:bg-slate-50"
+              >
+                <span className="grid h-5 w-5 place-items-center rounded-full bg-white text-base font-bold text-blue-600 shadow-sm">G</span>
+                Continue with Google
+              </button>
               <div className="mt-5 flex items-center gap-3">
                 <div className="h-px flex-1 bg-slate-200" />
                 <span className="text-xs font-semibold uppercase tracking-wide text-slate-400">or use email</span>

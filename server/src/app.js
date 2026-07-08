@@ -1,12 +1,13 @@
 import path from 'path';
 import { fileURLToPath } from 'url';
+import { toNodeHandler } from 'better-auth/node';
 import cookieParser from 'cookie-parser';
 import cors from 'cors';
 import express from 'express';
 import mongoSanitize from 'express-mongo-sanitize';
-import rateLimit from 'express-rate-limit';
 import helmet from 'helmet';
 import morgan from 'morgan';
+import { getAuth } from './config/auth.js';
 import { env } from './config/env.js';
 import { errorMiddleware, notFound } from './middleware/error.middleware.js';
 import { activityLogRoutes } from './modules/activity-logs/activityLog.route.js';
@@ -31,12 +32,11 @@ export function createApp() {
   app.set('trust proxy', 1);
   app.use(helmet());
   app.use(cors({ origin: env.clientUrl, credentials: true }));
+  app.all('/api/auth/*', toNodeHandler(getAuth()));
   app.use(express.json({ limit: '1mb' }));
   app.use(cookieParser());
   app.use(mongoSanitize());
   app.use(morgan('dev'));
-  app.use('/api/v1/auth/login', rateLimit({ windowMs: 15 * 60 * 1000, limit: 20 }));
-  app.use('/api/v1/auth/refresh', rateLimit({ windowMs: 15 * 60 * 1000, limit: 60 }));
 
   app.use('/api/v1/auth', authRoutes);
   app.use('/api/v1/users', userRoutes);

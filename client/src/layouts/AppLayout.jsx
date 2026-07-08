@@ -5,6 +5,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { io } from 'socket.io-client';
 import Button from '../components/Button.jsx';
 import VerifiedBadge from '../components/VerifiedBadge.jsx';
+import { authClient } from '../lib/authClient.js';
 import { api } from '../services/api.js';
 import { clearSession } from '../store/authSlice.js';
 import { can } from '../utils/permissions.js';
@@ -64,7 +65,7 @@ export default function AppLayout() {
     };
   }, [auth.user?._id]);
   const logout = async () => {
-    await api.post('/auth/logout').catch(() => {});
+    await authClient.signOut().catch(() => {});
     dispatch(clearSession());
     navigate('/login');
   };

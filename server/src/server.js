@@ -6,6 +6,8 @@ import { env } from './config/env.js';
 import { startActivityRetentionJob } from './jobs/activityRetention.job.js';
 import { seedBaseData, seedSuperAdmin } from './scripts/seedBaseData.js';
 
+await connectDb();
+
 const app = createApp();
 const server = http.createServer(app);
 export const io = new Server(server, { cors: { origin: env.clientUrl, credentials: true } });
@@ -16,7 +18,6 @@ io.on('connection', (socket) => {
   if (userId) socket.join(`user:${userId}`);
 });
 
-await connectDb();
 await seedBaseData();
 await seedSuperAdmin();
 startActivityRetentionJob();

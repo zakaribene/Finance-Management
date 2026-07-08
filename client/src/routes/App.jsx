@@ -1,5 +1,6 @@
+import { useEffect } from 'react';
 import { Navigate, Route, Routes } from 'react-router-dom';
-import { useSelector } from 'react-redux';
+import { useDispatch, useSelector } from 'react-redux';
 import AppLayout from '../layouts/AppLayout.jsx';
 import AuthPage from '../pages/AuthPage.jsx';
 import ActivityLogsPage from '../pages/ActivityLogsPage.jsx';
@@ -10,14 +11,23 @@ import NotificationsPage from '../pages/NotificationsPage.jsx';
 import ReportsPage from '../pages/ReportsPage.jsx';
 import SettingsPage from '../pages/SettingsPage.jsx';
 import UsersPage from '../pages/UsersPage.jsx';
+import { api } from '../services/api.js';
+import { clearSession, setSession } from '../store/authSlice.js';
 
 function PrivateRoute() {
-  const user = useSelector((state) => state.auth.user);
+  const { user, ready } = useSelector((state) => state.auth);
+  if (!ready) return null;
   if (user?.forcePasswordChange) return <Navigate to="/change-password" replace />;
   return user ? <AppLayout /> : <Navigate to="/login" replace />;
 }
 
 export default function App() {
+  const dispatch = useDispatch();
+  useEffect(() => {
+    api.get('/auth/session')
+      .then((response) => dispatch(setSession(response.data)))
+      .catch(() => dispatch(clearSession()));
+  }, [dispatch]);
   return (
     <Routes>
       <Route path="/login" element={<AuthPage mode="login" />} />
