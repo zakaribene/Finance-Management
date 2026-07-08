@@ -10,14 +10,16 @@ services:
         value: 20.11.0
       - key: MONGODB_URI
         sync: false
-      - key: JWT_ACCESS_SECRET
+      - key: CLIENT_URL
+        value: https://finance-management-yglv.onrender.com
+      - key: BETTER_AUTH_URL
+        value: https://finance-management-yglv.onrender.com
+      - key: BETTER_AUTH_SECRET
         generateValue: true
-      - key: JWT_REFRESH_SECRET
-        generateValue: true
-      - key: JWT_ACCESS_EXPIRE
-        value: 15m
-      - key: JWT_REFRESH_EXPIRE
-        value: 7d
+      - key: GOOGLE_CLIENT_ID
+        sync: false
+      - key: GOOGLE_CLIENT_SECRET
+        sync: false
       - key: SUPER_ADMIN_EMAIL
         sync: false
       - key: SUPER_ADMIN_PASSWORD
